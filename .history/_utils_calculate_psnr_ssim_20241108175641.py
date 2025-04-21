@@ -2,16 +2,11 @@ import cv2
 import numpy as np
 import lpips
 import torch
-import torchvision
 import torchvision.transforms as transforms
 import torchvision.models as models
-import matplotlib.pyplot as plt
-
 from scipy.signal import convolve2d
-from matplotlib.colors import Normalize
-from matplotlib.colors import LogNorm
 from PIL import Image
-from pytorch_fid import fid_score
+
 
 def calculate_psnr(img1, img2, crop_border, input_order='HWC', test_y_channel=False):
     """Calculate PSNR (Peak Signal-to-Noise Ratio).
@@ -173,21 +168,6 @@ def _blocking_effect_factor(im):
     bef[boundary_difference <= nonboundary_difference] = 0
     return bef
 
-def dice_coefficient(imageA, imageB):
-    # Convert images to boolean arrays
-    imageA = imageA.astype(bool)
-    imageB = imageB.astype(bool)
-
-    # Compute intersection
-    intersection = np.logical_and(imageA, imageB)
-
-    # Calculate Dice coefficient
-    total = imageA.sum() + imageB.sum()
-    if total == 0:
-        return 0.0  # Or another appropriate value or behavior
-    dice = 2.0 * intersection.sum() / total
-
-    return dice
 
 def calculate_psnrb(img1, img2, crop_border, input_order='HWC', test_y_channel=False):
     """Calculate PSNR-B (Peak Signal-to-Noise Ratio).
@@ -238,29 +218,6 @@ def calculate_psnrb(img1, img2, crop_border, input_order='HWC', test_y_channel=F
 
     return float(total) / img1.shape[1]
 
-
-def pearson_correlation(img1, img2):
-    # Convert images to 1D arrays
-    img1_flat = img1.flatten()
-    img2_flat = img2.flatten()
-
-    # Calculate means
-    mean1 = np.mean(img1_flat)
-    mean2 = np.mean(img2_flat)
-
-    # Calculate deviations from mean
-    diff1 = img1_flat - mean1
-    diff2 = img2_flat - mean2
-
-    # Calculate covariance and variances
-    covariance = np.sum(diff1 * diff2)
-    variance1 = np.sum(diff1 ** 2)
-    variance2 = np.sum(diff2 ** 2)
-
-    # Calculate Pearson correlation coefficient
-    correlation = covariance / np.sqrt(variance1 * variance2)
-    
-    return correlation
 
 def reorder_image(img, input_order='HWC'):
     """Reorder images to 'HWC' order.
@@ -442,44 +399,3 @@ def calculate_lpips(img1, img2):
 
     return similarity_score.item()
 
-
-def load_image_as_array(image_path):
-    """加载图像并转换为灰度数组"""
-    image = Image.open(image_path).convert('L')  # 转换为灰度图像
-    return np.array(image)
-
-def plot_joint_histogram(image1, image2):
-    """绘制两个图像的联合直方图"""
-    # 检查图像尺寸是否相同，不同则裁剪
-    min_shape = min(image1.shape, image2.shape)
-    image1 = image1[:min_shape[0], :min_shape[1]]
-    image2 = image2[:min_shape[0], :min_shape[1]]
-    
-    # 计算联合直方图
-    joint_histogram, x_edges, y_edges = np.histogram2d(image1.ravel(), image2.ravel(), bins=256, range=[[0, 256], [0, 256]])
-    
-    # 绘制二维直方图
-    plt.figure(figsize=(8, 6))
-    plt.imshow(joint_histogram, norm=LogNorm(vmin=1, vmax=100), origin='lower', interpolation='nearest', aspect='auto', cmap='viridis', extent=[0, 256, 0, 256])
-    plt.colorbar(label='Counts')
-    plt.title("Joint Histogram of Two Images")
-    plt.xlabel("Pixel Intensity of Image 1")
-    plt.ylabel("Pixel Intensity of Image 2")
-    plt.show()
-
-
-def calculate_fid(real_images_folder,generated_images_folder):
-    inception_model = torchvision.models.inception_v3(pretrained=True)
-    # 定义图像变换
-    transform = transforms.Compose([
-        transforms.Resize(299),
-        transforms.CenterCrop(299),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
-    ])
-    # 计算FID距离值
-    fid_value = fid_score.calculate_fid_given_paths([real_images_folder, generated_images_folder],
-                                                    batch_size=1,
-                                                    dims=2048,
-                                                   device='cpu')
-    return fid_value
